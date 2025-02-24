@@ -18,26 +18,72 @@ import (
 	"github.com/oapi-codegen/runtime"
 )
 
+// CreateEstateRequest defines model for CreateEstateRequest.
+type CreateEstateRequest struct {
+	Length int `json:"length"`
+	Width  int `json:"width"`
+}
+
+// CreateResponse defines model for CreateResponse.
+type CreateResponse struct {
+	Id string `json:"id"`
+}
+
+// CreateTreeRequest defines model for CreateTreeRequest.
+type CreateTreeRequest struct {
+	Height int `json:"height"`
+	X      int `json:"x"`
+	Y      int `json:"y"`
+}
+
 // ErrorResponse defines model for ErrorResponse.
 type ErrorResponse struct {
 	Message string `json:"message"`
 }
 
-// HelloResponse defines model for HelloResponse.
-type HelloResponse struct {
-	Message string `json:"message"`
+// GetEstateDronePlanResponse defines model for GetEstateDronePlanResponse.
+type GetEstateDronePlanResponse struct {
+	Distance int `json:"distance"`
+	Rest     *struct {
+		X *int `json:"x,omitempty"`
+		Y *int `json:"y,omitempty"`
+	} `json:"rest,omitempty"`
 }
 
-// GetHelloParams defines parameters for GetHello.
-type GetHelloParams struct {
-	Id int `form:"id" json:"id"`
+// GetEstateStatsResponse defines model for GetEstateStatsResponse.
+type GetEstateStatsResponse struct {
+	Count  int `json:"count"`
+	Max    int `json:"max"`
+	Median int `json:"median"`
+	Min    int `json:"min"`
 }
+
+// GetEstateIdDronePlanParams defines parameters for GetEstateIdDronePlan.
+type GetEstateIdDronePlanParams struct {
+	// MaxDistance Maximum distance of the drone (optional)
+	MaxDistance *int `form:"max_distance,omitempty" json:"max_distance,omitempty"`
+}
+
+// PostEstateJSONRequestBody defines body for PostEstate for application/json ContentType.
+type PostEstateJSONRequestBody = CreateEstateRequest
+
+// PostEstateIdTreeJSONRequestBody defines body for PostEstateIdTree for application/json ContentType.
+type PostEstateIdTreeJSONRequestBody = CreateTreeRequest
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
-	// This is just a test endpoint to get you started.
-	// (GET /hello)
-	GetHello(ctx echo.Context, params GetHelloParams) error
+	// Endpoint Create /estate
+	// (POST /estate)
+	PostEstate(ctx echo.Context) error
+	// Get Estate Drone Plan
+	// (GET /estate/{id}/drone-plan)
+	GetEstateIdDronePlan(ctx echo.Context, id string, params GetEstateIdDronePlanParams) error
+	// Get Estate Stats
+	// (GET /estate/{id}/stats)
+	GetEstateIdStats(ctx echo.Context, id string) error
+	// Create Tree Within Estate
+	// (POST /estate/{id}/tree)
+	PostEstateIdTree(ctx echo.Context, id string) error
 }
 
 // ServerInterfaceWrapper converts echo contexts to parameters.
@@ -45,21 +91,69 @@ type ServerInterfaceWrapper struct {
 	Handler ServerInterface
 }
 
-// GetHello converts echo context to params.
-func (w *ServerInterfaceWrapper) GetHello(ctx echo.Context) error {
+// PostEstate converts echo context to params.
+func (w *ServerInterfaceWrapper) PostEstate(ctx echo.Context) error {
 	var err error
 
-	// Parameter object where we will unmarshal all parameters from the context
-	var params GetHelloParams
-	// ------------- Required query parameter "id" -------------
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.PostEstate(ctx)
+	return err
+}
 
-	err = runtime.BindQueryParameter("form", true, true, "id", ctx.QueryParams(), &params.Id)
+// GetEstateIdDronePlan converts echo context to params.
+func (w *ServerInterfaceWrapper) GetEstateIdDronePlan(ctx echo.Context) error {
+	var err error
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", ctx.Param("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter id: %s", err))
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetEstateIdDronePlanParams
+	// ------------- Optional query parameter "max_distance" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "max_distance", ctx.QueryParams(), &params.MaxDistance)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter max_distance: %s", err))
+	}
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.GetEstateIdDronePlan(ctx, id, params)
+	return err
+}
+
+// GetEstateIdStats converts echo context to params.
+func (w *ServerInterfaceWrapper) GetEstateIdStats(ctx echo.Context) error {
+	var err error
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", ctx.Param("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
 	if err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter id: %s", err))
 	}
 
 	// Invoke the callback with all the unmarshaled arguments
-	err = w.Handler.GetHello(ctx, params)
+	err = w.Handler.GetEstateIdStats(ctx, id)
+	return err
+}
+
+// PostEstateIdTree converts echo context to params.
+func (w *ServerInterfaceWrapper) PostEstateIdTree(ctx echo.Context) error {
+	var err error
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", ctx.Param("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Invalid format for parameter id: %s", err))
+	}
+
+	// Invoke the callback with all the unmarshaled arguments
+	err = w.Handler.PostEstateIdTree(ctx, id)
 	return err
 }
 
@@ -91,20 +185,30 @@ func RegisterHandlersWithBaseURL(router EchoRouter, si ServerInterface, baseURL 
 		Handler: si,
 	}
 
-	router.GET(baseURL+"/hello", wrapper.GetHello)
+	router.POST(baseURL+"/estate", wrapper.PostEstate)
+	router.GET(baseURL+"/estate/:id/drone-plan", wrapper.GetEstateIdDronePlan)
+	router.GET(baseURL+"/estate/:id/stats", wrapper.GetEstateIdStats)
+	router.POST(baseURL+"/estate/:id/tree", wrapper.PostEstateIdTree)
 
 }
 
 // Base64 encoded, gzipped, json marshaled Swagger object
 var swaggerSpec = []string{
 
-	"H4sIAAAAAAAC/6ySz47TMBDGX8UMHKMmwJ58R7AHOMAiDqseTDJNXCUe78y4oqry7mjcFroSB4Q42bK/",
-	"me83f07Q05IpYVIBfwLpJ1xCvb5jJv6MkikJ2kNmysgasX4vKBLG+qHHjOBBlGMaYV0bYHwqkXEA//hL",
-	"uG2uQvq+x15hbeADzjP9lQf+CEueLbrGNO4b8Ty8gOaf3U0Z044s+xx7vBCksJjq4/2DAWrUavpVkN0X",
-	"5EPsERo4IEukBB5eb7pNZ0rKmEKO4OFtfWogB51qGe1kyHYbUe2wGoNGSvcDeHiPWmuqIRwWVGQB/3iC",
-	"aA5PBfkIzRUsDnBboXLB5jK2m1nEpDgiw7puTX1ucIV503V29JQUU6UJOc+xrzztXqyq003CV4w78PCy",
-	"/b0o7WVL2ufjqx0dUHqOWc/deUBRx6iFk/Xorrv7b97P1/MP3p9I3Y5KGupOSFmWwEdjmqK4KG5fRF1w",
-	"aoiYhkwxqVNyI6o7UnGigRWHzTm3IB+uYyk8g4dJNfu2nakP80SisG7XnwEAAP//WTbcj08DAAA=",
+	"H4sIAAAAAAAC/+xWXU/rRhD9K6tpH1rJxQ5QCfmxhaI8UCE+1AeEqsU7iRfZu2Z3nCZC+e/V7toOcZyQ",
+	"Ui7oXt23VXJm58zZMzN+hkyXlVaoyEL6DDbLseT++LtBTnhmiRNe4VONltzPldEVGpLoQQWqKeXuhHNe",
+	"VgVCOkoiKKWSZV1COoqAFhVCClIRTtHAMoJ/pPiPMcsIDD7V0qCA9K7N2t503wXoh0fMyOUI7K/QVlpZ",
+	"3CQuxRoBmKJCwwnF7e34dHYM3ZWWjFTTDQpS7Eh7Y3C7ZDnKaU5r2Y+SIZnmGxJtYhavYnq85+CCopbF",
+	"UA1nxmizXbkSreVT/8duiVrgUI5zpOCsU6MVXhZcbU8opCWuMlwr9TAZ1MMMSv4GJQeF7JXRq7fjubPg",
+	"a+Jktxeb6Vqtm2OQbcnne4BQSK72wMlXQb1SA8tAI8R32TaLd8FSTbSfFzLDpm7FS4e6GN84DiTJ96Gz",
+	"AnGS2l05Q2PdKYXRQXKQOJyuUPFKQgpH/qcIKk65ly5GL7DXVAcbOGX9ZWPh7ta2eQQI5aCl37RYBN0V",
+	"YVCeV1UhMx8WP1qtVnPRnX40OIEUfohXgzNupmY8NDKX69qRqTH41BvAEz9MRu9MofOXzy7QZkZWFKS8",
+	"QqtrkyHLPFQwW2cZWjupi2LhJD5Oknejsz5LBtiM1YwXUrDmOdiDe49lBL8GEn0woVG8YNdoZmiYv92b",
+	"09Zlyc0CUjhTotJSEQtKsNYVDtWc42cplrFwk+eXqggdMsUBw3RNOxbdnPKOM7xEQmMhvetzDAFsfArO",
+	"9ZB6f0LU2l0K6NsheqHlxkTtX3/B525LsnbYMD1hlCPz1bCftMfx4uc2+1ONZrFKX/L5392cGki8avj7",
+	"DZO+nyt2TP8Bi1wHf7JzJNao6+OYf47PMuzlygSewvHHUWhE+FMT+0PXSvyvftmiar9b3NHu0yh+v31s",
+	"k3yIVdf39is2DSJ8K75oqulbggzutWzHwn0Pf4IlvtSCf/l5/329v2m9f7190XxWOA+wvyTlUjVtEjJb",
+	"HxkMXpsCUsiJqjSOC53xIteW0pPkJIHl/fLfAAAA//+o/d6mfA8AAA==",
 }
 
 // GetSwagger returns the content of the embedded swagger specification file
