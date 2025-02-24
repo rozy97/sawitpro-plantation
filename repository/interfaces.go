@@ -7,5 +7,9 @@ package repository
 import "context"
 
 type RepositoryInterface interface {
-	GetTestById(ctx context.Context, input GetTestByIdInput) (output GetTestByIdOutput, err error)
+	CreateEstate(ctx context.Context, estate Estate) (id string, err error)
+	GetEstateByID(ctx context.Context, ID string) (estate Estate, err error)
+	CreateTree(ctx context.Context, tree Tree) (id string, err error)
+	GetEstateStats(ctx context.Context, ID string) (stats Stats, err error)
+	GetEstateTrees(ctx context.Context, ID string) (trees []Tree, err error)
 }
