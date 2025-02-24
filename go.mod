@@ -12,6 +12,8 @@ require (
 	github.com/stretchr/testify v1.9.0
 )
 
+require github.com/DATA-DOG/go-sqlmock v1.5.2
+
 require (
 	github.com/apapsch/go-jsonmerge/v2 v2.0.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
